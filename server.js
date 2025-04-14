@@ -44,7 +44,7 @@ app.get('/health', (req, res) => {
 });
 
 // Initialize socket.io
-socketManager(httpServer);
+new socketManager(httpServer);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

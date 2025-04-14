@@ -66,7 +66,7 @@ router.get(
     authenticate,
     check('lng', 'Longitude is required').isNumeric(),
     check('lat', 'Latitude is required').isNumeric(),
-    check('maxDistance', 'Max distance must be a positive number').optional().isNumeric().toFloat().isPositive()
+    check('maxDistance', 'Max distance must be a positive number').optional().isNumeric().toFloat().custom(value => value > 0)
   ],
   hospitalController.findNearbyHospitals
 );

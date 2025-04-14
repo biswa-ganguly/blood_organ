@@ -394,3 +394,42 @@ exports.getRequestStats = async (req, res) => {
     res.status(500).json({ msg: 'Server error' });
   }
 };
+/**
+ * @desc    Get urgent requests by type (blood/organ)
+ * @route   GET /api/requests/urgent/:type
+ */
+exports.getUrgentRequests = async (req, res) => {
+  try {
+    const { type } = req.params;
+    
+    // Validate request type
+    if (!['blood', 'organ'].includes(type)) {
+      return res.status(400).json({ msg: 'Invalid request type' });
+    }
+    
+    // Filter for urgent requests
+    const filter = {
+      requestType: type,
+      'recipientDetails.urgencyLevel': 'high',  // Assuming 'high' indicates urgency
+      status: { $nin: ['fulfilled', 'cancelled'] }
+    };
+    
+    // If user is a hospital, only show their requests
+    if (req.user.role === 'hospital') {
+      const hospital = await Hospital.findOne({ user: req.user.id });
+      if (!hospital) {
+        return res.status(404).json({ msg: 'Hospital profile not found' });
+      }
+      filter.hospital = hospital._id;
+    }
+    
+    const urgentRequests = await Request.find(filter)
+      .populate('hospital', 'name location contactInfo')
+      .sort({ requiredBy: 1 });  // Sort by required date (soonest first)
+    
+    res.json(urgentRequests);
+  } catch (err) {
+    console.error('Get urgent requests error:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};

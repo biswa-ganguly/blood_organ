@@ -25,10 +25,7 @@ exports.register = async (req, res) => {
       return res.status(400).json({ errors: [{ msg: 'User already exists' }] });
     }
 
-    // Generate verification token
-    const verificationToken = crypto.randomBytes(20).toString('hex');
-
-    // Create user instance
+    // Create user instance with isVerified set to true
     user = new User({
       name,
       email,
@@ -36,21 +33,37 @@ exports.register = async (req, res) => {
       phone,
       role,
       location,
-      verificationToken
+      isVerified: true // Automatically verify the user
     });
 
     // Save user to database
     await user.save();
 
-    // Send verification email
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify/${verificationToken}`;
-    await sendEmail({
-      to: email,
-      subject: 'Email Verification',
-      html: `Please click the link to verify your email: <a href="${verificationUrl}">${verificationUrl}</a>`
-    });
+    // Create JWT token
+    const payload = {
+      user: {
+        id: user.id,
+        role: user.role
+      }
+    };
 
-    res.status(201).json({ msg: 'User registered. Please verify your email.' });
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' },
+      (err, token) => {
+        if (err) throw err;
+        res.status(201).json({
+          token,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+          }
+        });
+      }
+    );
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ msg: 'Server error' });
@@ -74,11 +87,6 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ errors: [{ msg: 'Invalid credentials' }] });
-    }
-
-    // Check if email is verified
-    if (!user.isVerified) {
-      return res.status(400).json({ errors: [{ msg: 'Please verify your email before logging in' }] });
     }
 
     // Compare passwords
